@@ -19,7 +19,11 @@ void intHandler(//int dummy
     keepRunning = 1;
     //exit(0);
 }
-
+void quitHandler(//int dummy
+                ) {
+                    fclose(stdin);
+    //exit(0);
+}
 
 //Milestone#1: print prompt
 void print_prompt(){
@@ -60,38 +64,45 @@ void get_user_input( char ** command){
 //    }
 }
 
-//built-in commands:cd
+//built-in command:cd
 void cd(char ** command){
     
+    char *str = malloc(1000);
+    char *delim = " ,\n";
+    char *token;
+    int arg_num = 0;
+    
+    strcpy(str, *command);
+    
+    token = strtok(str, delim);
+    while(token){
+        arg_num ++;
+        token = strtok(NULL, delim);
+    }
+    
+    //If cd is called with 0 or 2+ arguments, Error: invalid command
+    if(arg_num != 2)
+        fprintf(stderr,"Error: invalid command\n");
 
-    
-    char *command2 = malloc(100);
-    
-    size_t len_path = strlen(*command);
-    strncpy(command2,*command,len_path -1);
-    
-    //printf("strlen: %zu",len_path);
-//    printf("cdpath: %s",(*command)+3);
-//    printf("cdpath: %s",(*command)+4);
-//    printf("cdpath: %s",(*command)+5);
-//    printf("cdpath: %s",(*command)+6);
-//    printf("cdpath: %s",(*command)+7);
-//    printf("cdpath: %s",(*command)+8);
-//
-//    printf("token1: %s",(token)+2);
-//    printf("token2: %s",(token)+3);
-//    printf("token3: %s",(token)+4);
-//    printf("token4: %s",(token)+5);
-//    printf("token5: %s",(token)+6);
-    //printf("token: %s",(*token)+7);
-    
-    if(chdir((command2)+3) == -1)
-        perror("chdir() error");
-    
-    free(command2);
-    
+    else{
+        char *command2 = malloc(100);
+        
+        size_t len_path = strlen(*command);
+        strncpy(command2,*command,len_path -1);
+        //If the directory does not exist, Error: invalid directory
+        if(chdir((command2)+3) == -1)
+            fprintf(stderr,"Error: invalid directory\n");
+ 
+        free(command2);
+    }
+    free(str);
     
 }
+
+//built-in command:exit
+//void exit(){
+//    break;
+//}
 
 
 //body
@@ -114,7 +125,7 @@ int main(
     
     //sighandler_t
     signal(SIGINT, intHandler);
-    
+    signal(SIGQUIT, quitHandler);
     //repeat prompt while exit code is 0
     while (1) {
     //while(*exit_c == 0){
@@ -125,38 +136,25 @@ int main(
         print_prompt();
         get_user_input(command);
         //get_user_input(exit_c, command);
-        
-        if(**command == 'c' && *((*command)+1) == 'd'){
-            cd( command);
-            continue;
+        //printf("print%s",*command);
+        //char * exit_s = "exit";
+        if(strcmp(*command,"exit\n") == 0){
+            break;
         }
         
-       // printf("BEFORE:  string:%s\n",  *command);
-        size_t len = strlen(*command);
-        //char * concat = malloc(5+(sizeof(char))*len);
-        //char * concat = malloc(1000);
-        strcat(concat, "/bin/");
+        if(**command == 'c' && *((*command)+1) == 'd'){
+            cd(command);
+            continue;
+        }
+//
+        size_t len;
+        size_t len_concat;
         
-//        printf("CONCAT:  %s\n",  concat);
-//        printf("LEN_CONCAT:  %ld\n",  strlen(concat));
-        size_t len_concat = strlen(concat);
-
-        //char *str = malloc(sizeof(char)*len);
-        //char *str = malloc(1000);
         char *delim = " ,\n";
         char *token;
         strcpy(str, *command);
+        token = strtok(str, delim);
         
-        token = strtok(str, delim);//token: the first arg in command
-        strcat(concat, token);// "/bin/" + the first arg in command
-        
-        //char * concat2 = malloc(5+(sizeof(char))*len);
-//        char * concat2 = malloc(1000);
-        strncpy(concat2,concat,len_concat + len-1); //eliminate '/0'
-        
-        //printf("AFTER:  string:%s\n",  *command);
-        
-        //turn "char ** command" into "char *const parmList[]" for execv
         int arg_num = 0;
         while(token){
             //printf("TOKEN %s\n",  token);
@@ -164,12 +162,13 @@ int main(
             token = strtok(NULL, delim);
         }
         
-        //char *str2 = malloc(sizeof(char)*len);
-//        char *str2 = malloc(1000);
+        char* arglist [arg_num+1];
+//        printf("arg_num: %d\n", arg_num);
+        
         char *delim2 = " ,\n";
         char *token2;
         strcpy(str2, *command);
-        char* arglist [arg_num+1];
+//            char* arglist [arg_num+1];
         token2 = strtok(str2, delim2);
         for(int i=0; i<arg_num; i++){
             
@@ -179,7 +178,66 @@ int main(
             
         }
         arglist[arg_num] = NULL;
+        
+        
+        char * loc =  strchr(*command, '/');
+        if(loc == NULL) {
+            //3. Locating programs: only the base name
+            // concat /usr/bin
+            // ret = execv(concat2,arglist);
+//            printf("nolocation: %s",loc);
+            
+            len = strlen(*command);
+            strcat(concat, "/usr/bin/");
+            len_concat = strlen(concat);
+            
+//            char *delim = " ,\n";
+//            char *token;
+            strcpy(str, *command);
+            
+            token = strtok(str, delim);//token: the first arg in command
+            strcat(concat, token);// "/bin/" + the first arg in command
+            
+            strncpy(concat2,concat,len_concat + len-1); //eliminate '/0'
+            
+//     
+      
+            
+            
+        }
+        else{
+            //1. Locating programs: absolute path
+            if(**command == '/'){
+//                printf("before arglist 1st ele: %s",arglist[0]);
+                char * ptr = strrchr(arglist[0] , '/' );
+                
+//                printf("location: %s",loc);
+                concat2 = str;
+                arglist[0] = ptr + 1;
+//
+            }
+            else{//2. Locating programs: relative path
+                
+                char cwd[256];
+                
+            
+                if (getcwd(cwd, sizeof(cwd)) == NULL)
+                    perror("getcwd() error");
+                else{
+//                    printf("cwd:%s",cwd);
+//                    printf("location: %s",loc);
+                    concat2 = strcat(cwd,"/");
+//                    printf("concat2: %s",concat2);
+//                    printf("str: %s",str);
+                    strcat(concat2, str);
+//                    printf("AFTER concat2: %s",concat2);
+                    char * ptr = strrchr(arglist[0] , '/' );
+                    arglist[0] = ptr + 1;
+                }
+            }
 
+        }
+  
 //        printf("concat2:  %s\n",  concat2);
 ////
 //        printf("1MAIN:  string:%s\n",  *arglist);
@@ -202,7 +260,9 @@ int main(
             //execv
             ret = execv(concat2,arglist);
             if (ret == -1) {
-                        perror("execve error");
+                fprintf(stderr,"Error: invalid program\n");//Error: invalid program
+                
+                        //perror("execve error");
                     }
             
             //execl
