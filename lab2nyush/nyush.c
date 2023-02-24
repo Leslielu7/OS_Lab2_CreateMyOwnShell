@@ -10,7 +10,11 @@
 #include <unistd.h> //getcwd()
 #include <string.h> //strrchr()
 #include <sys/wait.h>
+#include<fcntl.h>
 #include <signal.h>
+
+#include<errno.h>
+extern int errno;
 
 static volatile int keepRunning = 0;
 
@@ -54,7 +58,6 @@ void get_user_input( char ** command){
     size_t n = 0;
 
     getline(command, &n, stdin);
-    
     
     //if(**command == 'e') { *exit_c = -1;}// if user inputs 'e', set exit code to -1 to leave prompt
 //    else {
@@ -111,11 +114,8 @@ int main(
 ) {
     // insert code here...
     
-    //set exit code to default 0
-//    int * exit_c = malloc(sizeof(int));
-//    *exit_c = 0;
-    
     char ** command = malloc(sizeof(char*));
+    *command = malloc(sizeof(char*));
     char * concat = malloc(1000);
     char *str = malloc(1000);
     char * concat2 = malloc(1000);
@@ -126,18 +126,18 @@ int main(
     //sighandler_t
     signal(SIGINT, intHandler);
     signal(SIGQUIT, quitHandler);
-    //repeat prompt while exit code is 0
+   
     while (1) {
-    //while(*exit_c == 0){
-    //while(TRUE){
-        //char * command[1000];
-        //char ** command = malloc(sizeof(char*));
-
         print_prompt();
         get_user_input(command);
-        //get_user_input(exit_c, command);
-        //printf("print%s",*command);
-        //char * exit_s = "exit";
+        
+        //EOF
+        if (feof(stdin)) break;
+        
+        if(strcmp(*command,"\n") == 0){
+            continue;
+        }
+        
         if(strcmp(*command,"exit\n") == 0){
             break;
         }
@@ -146,107 +146,190 @@ int main(
             cd(command);
             continue;
         }
-//
-        size_t len;
-        size_t len_concat;
         
-        char *delim = " ,\n";
+        
+        //count arg_num of user input
+        char *delim = " ,\n,>,<";
         char *token;
         strcpy(str, *command);
         token = strtok(str, delim);
         
         int arg_num = 0;
         while(token){
-            //printf("TOKEN %s\n",  token);
             arg_num ++;
             token = strtok(NULL, delim);
         }
         
-        char* arglist [arg_num+1];
-//        printf("arg_num: %d\n", arg_num);
+        //printf("arg_num:%d\n",arg_num);
         
-        char *delim2 = " ,\n";
+      
+        
+        //    I/O redirection
+        // input redirection
+//        char * loc_in =  strchr(*command, '<');
+        // output redirection
+        char * loc_in =  strstr(*command, " < ");
+        char * loc_out =  strstr(*command, " > ");
+        char * loc_app =  strstr(*command, " >> ");
+        //printf("*command:%s\n", *command);
+        //printf("loc_out:%s\n", loc_out);
+        int saved_stdout;
+        int saved_stdin;
+        int fd;
+        
+
+        //printf("out loc_app:%s\n", loc_app);
+        //printf("out loc_out:%s\n", loc_out);
+        
+        
+        if(loc_in != NULL){
+            loc_in = strtok(loc_in+3,"\n");
+            //printf("1. loc_in:%s\n", loc_in);
+            fd = open(loc_in, O_RDONLY, 0777);
+            //printf("2. loc_in:%s\n", loc_in);
+            if (fd == -1)
+            {
+                // print which type of error have in a code
+                fprintf(stderr,"Error: invalid file\n");
+                
+//                 print program detail "Success or failure"
+//                perror("Program");
+            }
+            else {
+                //fflush(stdout);
+                saved_stdin = dup(STDIN_FILENO);
+                dup2(fd,0);
+                close(fd);
+                arg_num --;
+            }
+        }
+        else if(loc_app != NULL){
+            loc_app = strtok(loc_app+4,"\n");
+        //printf("1. loc_app:%s\n", loc_app);
+            fd = open(loc_app,O_WRONLY | O_CREAT | O_APPEND, 0777);
+            //printf("2. loc_app:%s\n", loc_app);
+            //https://www.geeksforgeeks.org/input-output-system-calls-c-create-open-close-read-write/
+//            if (fd == -1)
+//                {
+//                    // print which type of error have in a code
+//                    printf("Error Number % d\n", errno);
+//
+//                    // print program detail "Success or failure"
+//                    perror("Program");
+//                }
+//            else {
+                //fflush(stdout);
+                saved_stdout = dup(STDOUT_FILENO);
+                dup2(fd,1);
+                close(fd);
+//                }
+         
+            arg_num --;
+           // continue;
+        
+            // concat2
+            //strcat();
+//            loc_app = strtok(loc_app+2,"\n");
+//            printf("1. loc_app:%s\n", loc_app);
+//            if((fd = open(loc_app,O_WRONLY | O_CREAT |O_APPEND, 0777)) == -1)
+//                {
+//                    // print which type of error have in a code
+//                    printf("Error Number % d\n", errno);
+//
+//                    // print program detail "Success or failure"
+//                    perror("Program");
+//                }
+//            else{
+//                printf("2. loc_app:%s\n", loc_app);
+//                //https://www.geeksforgeeks.org/input-output-system-calls-c-create-open-close-read-write/
+//                dup2(fd,1);
+//                close(fd);
+//                arg_num --;
+//            }
+           // continue;
+                
+        }
+        else if(loc_out != NULL){
+                // concat2
+                //strcat();
+                loc_out = strtok(loc_out+3,"\n");
+            //printf("1. loc_out:%s\n", loc_out);
+                fd = open(loc_out,O_WRONLY | O_CREAT | O_TRUNC, 0777);
+                //printf("2. loc_out:%s\n", loc_out);
+                //https://www.geeksforgeeks.org/input-output-system-calls-c-create-open-close-read-write/
+//                if (fd == -1)
+//                    {
+//                        // print which type of error have in a code
+//                        printf("Error Number % d\n", errno);
+//
+//                        // print program detail "Success or failure"
+//                        perror("Program");
+//                    }
+//                else {
+                    saved_stdout = dup(STDOUT_FILENO);
+                    dup2(fd,1);
+                    close(fd);
+//            }
+             
+                arg_num --;
+               // continue;
+            }
+//
+        //initialize arglist for execv()
+        char* arglist [arg_num+1];
+        //char *delim2 = " ,\n";
         char *token2;
         strcpy(str2, *command);
-//            char* arglist [arg_num+1];
-        token2 = strtok(str2, delim2);
+        token2 = strtok(str2, delim);
         for(int i=0; i<arg_num; i++){
-            
             arglist[i] = token2;
-            token2 = strtok(NULL, delim2);
-            //printf("token %s\n",  token2);
-            
+            token2 = strtok(NULL, delim);
         }
         arglist[arg_num] = NULL;
+
+//        printf("arglist0:%s",arglist[0]);
+//        printf("arglist1:%s",arglist[1]);
+//        printf("arglist2:%s",arglist[2]);
         
-        
+        //   Locating programs
         char * loc =  strchr(*command, '/');
-        if(loc == NULL) {
-            //3. Locating programs: only the base name
-            // concat /usr/bin
-            // ret = execv(concat2,arglist);
-//            printf("nolocation: %s",loc);
+        if(loc == NULL) {//3. Locating programs: only the base name
+            size_t len;
+            size_t len_concat;
             
             len = strlen(*command);
             strcat(concat, "/usr/bin/");
             len_concat = strlen(concat);
-            
-//            char *delim = " ,\n";
-//            char *token;
+
             strcpy(str, *command);
-            
             token = strtok(str, delim);//token: the first arg in command
-            strcat(concat, token);// "/bin/" + the first arg in command
+            strcat(concat, token);// "/usr/bin/" + the first arg in command
             
             strncpy(concat2,concat,len_concat + len-1); //eliminate '/0'
             
-//     
-      
-            
-            
         }
-        else{
-            //1. Locating programs: absolute path
+        else{//1. Locating programs: absolute path
             if(**command == '/'){
-//                printf("before arglist 1st ele: %s",arglist[0]);
                 char * ptr = strrchr(arglist[0] , '/' );
-                
-//                printf("location: %s",loc);
                 concat2 = str;
                 arglist[0] = ptr + 1;
-//
             }
             else{//2. Locating programs: relative path
-                
                 char cwd[256];
-                
-            
                 if (getcwd(cwd, sizeof(cwd)) == NULL)
                     perror("getcwd() error");
                 else{
-//                    printf("cwd:%s",cwd);
-//                    printf("location: %s",loc);
                     concat2 = strcat(cwd,"/");
-//                    printf("concat2: %s",concat2);
-//                    printf("str: %s",str);
                     strcat(concat2, str);
-//                    printf("AFTER concat2: %s",concat2);
                     char * ptr = strrchr(arglist[0] , '/' );
                     arglist[0] = ptr + 1;
                 }
             }
 
         }
-  
-//        printf("concat2:  %s\n",  concat2);
-////
-//        printf("1MAIN:  string:%s\n",  *arglist);
-//        printf("2MAIN:  string:%s\n",  *(arglist+1));
-//        printf("3MAIN:  string:%s\n",  *(arglist+2));
-        //printf("4MAIN:  string:%s\n",  *(arglist+3));
-
-        //char* sample2[] = {"ls", "-l", NULL};
         
+        //printf("concat2:%s\n",concat2);
+
         //milestone3: run a simple program, such as ls
         int pid;
         
@@ -256,15 +339,16 @@ int main(
             perror("fork() error");
         } else if (pid == 0) {
           // child (new process)
-            
-            //execv
-            ret = execv(concat2,arglist);
+            //char* sample2[] = {"cat",  NULL};
+            //ret = execv(concat2,sample2);
+            ret = execv(concat2,arglist);// //char* sample2[] = {"ls", "-l", NULL};
             if (ret == -1) {
-                fprintf(stderr,"Error: invalid program\n");//Error: invalid program
-                
-                        //perror("execve error");
+                fprintf(stderr,"Error: invalid program\n");
+                //continue;//Error: invalid program
+                //perror("execve error");
                     }
             
+            //close(saved_stdout);
             //execl
           
 //            int ret = execl("/bin/ps", *command, NULL);
@@ -279,7 +363,10 @@ int main(
             exit(-1);
         }
         else{ //parent
+            
                 wait(NULL);
+            dup2(saved_stdin, 0);
+            dup2(saved_stdout, 1);
          // waitpid(-1, ...);
         }
         
