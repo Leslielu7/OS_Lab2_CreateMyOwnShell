@@ -26,6 +26,9 @@ static volatile int keepRunning = 0;
 //    continue;
 //    //exit(0);
 //}
+
+// Ctrl-C or Ctrl-Z
+// don’t expect to terminate or suspend the shell. Therefore, your shell should ignore the following signals: SIGINT, SIGQUIT, and SIGTSTP
 void quitHandler(//int dummy
                 ) {
                     fclose(stdin);
@@ -107,10 +110,12 @@ int cd(char ** command){
 }
 
 
-void redir_in (int * i, int * arg_num_p, int * arg_num, int (* pipefd)[*arg_num_p][2], int* saved_stdin, int * fd_in, char ** loc_in, //int *is_loc_in,
+void redir_in (int * i, int * arg_num_p, int * arg_num,// int (* pipefd)[*arg_num_p][2],
+               int* saved_stdin, int * fd_in, char ** loc_in, //int *is_loc_in,
                int *is_loc_app, int * is_loc_out, //int * b,
                int * c){
     if(*loc_in != NULL){
+        //printf("done.\n");
         //                if(cd_flag==-1) {
         //                    fprintf(stderr,"Error: invalid command\n");
         //                    continue;
@@ -121,11 +126,11 @@ void redir_in (int * i, int * arg_num_p, int * arg_num, int (* pipefd)[*arg_num_
         
         if(*i!=0 && *arg_num_p>0){// if multiple, only first program can include "<"
             fprintf(stderr,"Error: invalid command\n");
-            for(int j=0; j<*arg_num_p; j++){
-                close((*pipefd)[j][1]);//==-1;
-                close((*pipefd)[j][0]);//==-1;
-            }
-            
+//            for(int j=0; j<*arg_num_p; j++){
+//                close((*pipefd)[j][1]);//==-1;
+//                close((*pipefd)[j][0]);//==-1;
+//            }
+//
             *c = 1;
             return;
         }
@@ -149,10 +154,11 @@ void redir_in (int * i, int * arg_num_p, int * arg_num, int (* pipefd)[*arg_num_
         
         
         char * delim_in = " ";
-        char * token_in;
+        char * token_in = malloc(1000);
         
+        strcpy(token_in,*loc_in);
      //   printf("*loc_in:%s\n", *loc_in);
-        token_in = strtok(*loc_in, delim_in);
+        token_in = strtok(token_in, delim_in);
       //  printf("token_in:%s\n", token_in);
         *fd_in = open(token_in, O_RDONLY, 0777);
         //printf("2. loc_in:%s\n", loc_in);
@@ -171,13 +177,16 @@ void redir_in (int * i, int * arg_num_p, int * arg_num, int (* pipefd)[*arg_num_
             dup2(*fd_in,STDIN_FILENO);
             close(*fd_in);
             (*arg_num) --;
+            
         }
     }
 }
 
+//char*
 void redir_app (int * i, int * arg_num_p, int * arg_num, //int (* pipefd)[*arg_num_p][2],
                 int* saved_stdout, int * fd_app, char ** loc_app, int *is_loc_in, //int *is_loc_app,
-                int * is_loc_out, int * c,  char ** file_temp, int * fd_temp){
+                int * is_loc_out, int * c//,  char ** file_temp, int * fd_temp
+                ){
     if(*loc_app != NULL){
         //                if(cd_flag==-1) {
         //                    fprintf(stderr,"Error: invalid command\n");
@@ -187,17 +196,15 @@ void redir_app (int * i, int * arg_num_p, int * arg_num, //int (* pipefd)[*arg_n
 
         if(* is_loc_out == 1){
             *c = 1;
-            return;
+            return ;
         }
         
         if(*i!=*arg_num_p && *arg_num_p>0){// if multiple, only last program can include ">>"
             fprintf(stderr,"Error: invalid command\n");
             *c = 1;
-            return;
+            return ;
         }
         
-       
-
         //printf("here~~*loc_app:%s\n", *loc_app);
         *loc_app = strtok(*loc_app+4,"\n");
         //printf("heyhere~~*loc_app:%s\n", *loc_app);
@@ -212,74 +219,67 @@ void redir_app (int * i, int * arg_num_p, int * arg_num, //int (* pipefd)[*arg_n
            && *(token_app_blank+1)) {//blank between filename
             fprintf(stderr,"Error: invalid command\n");
             *c = 1;
-            return;
+            return ;
         }
 
 
         char * delim_app = " ";
-        char * token_app;
+        char * token_app = malloc(1000);
 
        // printf("*loc_app:%s\n", *loc_app);
-        token_app = strtok(*loc_app, delim_app);
+        strcpy(token_app,*loc_app);
+        token_app = strtok(token_app, delim_app);
         //printf("token_app:%s\n", token_app);
         
         *fd_app = open(token_app,O_WRONLY | O_CREAT | O_APPEND, 0777);
-        //printf("2. loc_in:%s\n", loc_in);
-//        if (*fd_app == -1)
-//        {
-//            // print which type of error have in a code
-//            fprintf(stderr,"Error: invalid file\n");
-//            *c = 1;
-//            exit(0);
-//            //                 print program detail "Success or failure"
-//            //                perror("Program");
-//        }
-//        else {
-            //fflush(stdout);
+     
         //printf("is loc in:%d\n", * is_loc_in );
-            if(* is_loc_in == 1){// create a temporary file for "cat >> output.txt < input.txt"
-               // cat a > /tmp/tempfile ; mv /tmp/tempfile a
-//                char * buf = "";
-//                char * file_temp = "temporary.txt";
-                * fd_temp = open(*file_temp,O_WRONLY | O_CREAT | O_TRUNC, 0777);
-                //= creat(file_temp, 0777);
+//            if(*is_loc_in == 1){// create a temporary file for "cat >> output.txt < input.txt"
+//               // cat a > /tmp/tempfile ; mv /tmp/tempfile a
+////                char * buf = "";
+////                char * file_temp = "temporary.txt";
+//                * fd_temp = open(*file_temp,O_WRONLY | O_CREAT | O_TRUNC, 0777);
+//                //= creat(file_temp, 0777);
+////                *saved_stdout = dup(STDOUT_FILENO);
+////                dup2(fd_temp,STDOUT_FILENO);
+////                printf("hiii\n");
+////                //read temporary, append to output.txt, dup2, remove temporary
+////                while(read(fd_temp,buf,strlen(buf))>0){
+////                    write(*fd_app,buf,strlen(buf));
+////                }
+////                dup2(*fd_app,STDOUT_FILENO);
+////
+//
+////                //remove(file_temp);
+//                //char * file_temp = "temporary.txt";
+//                //int fd_temp;
+//
+//
 //                *saved_stdout = dup(STDOUT_FILENO);
-//                dup2(fd_temp,STDOUT_FILENO);
-//                printf("hiii\n");
+//                dup2(*fd_temp,STDOUT_FILENO);
+//              //  printf("hiii\n");
 //                //read temporary, append to output.txt, dup2, remove temporary
-//                while(read(fd_temp,buf,strlen(buf))>0){
-//                    write(*fd_app,buf,strlen(buf));
-//                }
-//                dup2(*fd_app,STDOUT_FILENO);
-//
-                
-//                //remove(file_temp);
-                
-                
-                
-                *saved_stdout = dup(STDOUT_FILENO);
-                dup2(*fd_temp,STDOUT_FILENO);
-              //  printf("hiii\n");
-                //read temporary, append to output.txt, dup2, remove temporary
-//                while(read(fd_temp,buf,strlen(buf))>0){
-//                    write(*fd_app,buf,strlen(buf));
-//                }
-//                dup2(*fd_app,STDOUT_FILENO);
-//
-                close(*fd_temp);
-//                //remove(file_temp);
-                close(*fd_app);
-//
-                
-            }
-            else{
+////                while(read(fd_temp,buf,strlen(buf))>0){
+////                    write(*fd_app,buf,strlen(buf));
+////                }
+////                dup2(*fd_app,STDOUT_FILENO);
+////
+//                close(*fd_temp);
+////                //remove(file_temp);
+//                close(*fd_app);
+////
+//                printf("token_app:%s\n", token_app);
+//            }
+//            else{
                 *saved_stdout = dup(STDOUT_FILENO);
                 dup2(*fd_app,STDOUT_FILENO);
                 close(*fd_app);
-            }
+//            }
             (*arg_num) --;
+        return; //token_app;
 //        }
     }
+    //else {return "";}
 }
 
 
@@ -326,25 +326,15 @@ void redir_out (int * i, int * arg_num_p, int * arg_num, //int (* pipefd)[*arg_n
 
 
         char * delim_out = " ";
-        char * token_out;
-
+        char * token_out = malloc(1000);
+        
+        strcpy(token_out, *loc_out);
       //  printf("*loc_out:%s\n", *loc_out);
-        token_out = strtok(*loc_out, delim_out);
+        token_out = strtok(token_out, delim_out);
       //  printf("token_out:%s\n", token_out);
         
         *fd_out = open(token_out,O_WRONLY | O_CREAT | O_TRUNC, 0777);
-        //printf("2. loc_in:%s\n", *loc_out);
-//        if (*fd_app == -1)
-//        {
-//            // print which type of error have in a code
-//            fprintf(stderr,"Error: invalid file\n");
-//            *c = 1;
-//            exit(0);
-//            //                 print program detail "Success or failure"
-//            //                perror("Program");
-//        }
-//        else {
-            //fflush(stdout);
+
             *saved_stdout = dup(STDOUT_FILENO);
             dup2(*fd_out,STDOUT_FILENO);
             close(*fd_out);
@@ -358,7 +348,7 @@ int main(
         //int argc, const char * argv[]
 ) {
     // insert code here...
-    opterr = 0;
+    //opterr = 0;
     
     
     char ** command = malloc(sizeof(char*));
@@ -374,7 +364,7 @@ int main(
     int ret = 0;
     
     //sighandler_t
-    signal(SIGINT, SIG_IGN);
+    //signal(SIGINT, SIG_IGN);
 //    signal(SIGINT, intHandler);
 //    signal(SIGQUIT, quitHandler);
    
@@ -548,17 +538,18 @@ int main(
 //            printf("token_p fresh3:%s\n", token_p);
 //            printf("Len_token_p fresh3:%ld\n", strlen(token_p));
             
-          
+            //printf(" 1.token_p:%s\n", token_p);
             char * loc_in =  strstr(token_p, " < ");
             char * loc_out =  strstr(token_p, " > ");
             char * loc_app =  strstr(token_p, " >> ");
             char * loc_in_invalid =  strstr(token_p, " << ");
+            //printf(" 2.token_p:%s\n", token_p);
             
-//            printf(" loc_in:%s\n", loc_in);
+            //printf(" loc_in:%s\n", loc_in);
 //            printf(" strlen_loc_in:%ld\n", strlen(loc_in));
 //            printf(" loc_out:%s\n", loc_out);
 //            printf(" strlen_loc_out:%ld\n", strlen(loc_out));
-//            printf(" loc_app:%s\n", loc_app);
+            //printf(" loc_app:%s\n", loc_app);
 //            printf(" strlen_loc_app:%ld\n", strlen(loc_app));
 //
             if(loc_in_invalid) {
@@ -617,27 +608,37 @@ int main(
                     continue;
                 }}
             
-            //char * buf = "";
-            char * file_temp = "temporary.txt";
-            int fd_temp;
-            
+//            char * buf = "";
+//            char * file_temp = "temporary.txt";
+//            int fd_temp;
+//            char * prt_token_app;
             
           //  printf("hereeeee");
             for(int r=(int)strlen(*command) ; r>0; r--){
-                //printf("r:%d\n",r);
-                //printf("is_loc_in:%d/n",is_loc_in);
+//                printf("r:%d\n",r);
+//                printf("is_loc_in:%d\n",is_loc_in);
+//                printf("is_loc_in:%d\n",is_loc_app);
+//                printf("(int)strlen(loc_in):%s\n", loc_in);
+//                printf("token_p:%s\n", token_p);
+               // printf("(int)strlen(loc_out):%d\n", (int)strlen(loc_out));
+                //printf("(int)strlen(loc_app):%s\n", loc_app);
                 if(is_loc_in ==1){
                     if(r == (int)strlen(loc_in)  ){
-                        redir_in (&i, &arg_num_p, &arg_num, &pipefd, &saved_stdin, &fd_in, &loc_in, &is_loc_app, &is_loc_out, &c);
+                        //printf("is_loc_in:%d\n",is_loc_in);
+                        redir_in (&i, &arg_num_p, &arg_num, //&pipefd,
+                                  &saved_stdin, &fd_in, &loc_in, &is_loc_app, &is_loc_out, &c);
                         is_loc_in ++;
                     }
                 }
+                //printf("end in:\n");
                 if(c==1)break;
                 if(is_loc_app ==1){
                     if(r == (int)strlen(loc_app)  ){
+                        //prt_token_app =
                         redir_app (&i, &arg_num_p, &arg_num, //&pipefd,
-                                   &saved_stdout, &fd_app, &loc_app, &is_loc_in, &is_loc_out, &c,
-                                   &file_temp, &fd_temp);
+                                   &saved_stdout, &fd_app, &loc_app, &is_loc_in, &is_loc_out, &c
+                                    //,&file_temp, &fd_temp
+                                                   );
                         is_loc_app ++;
                     }
                 }
@@ -654,171 +655,7 @@ int main(
             }
             //if(c==2)break;
             if(c==1)break;
-            
-//
-//
-//            if(loc_in != NULL){
-////                if(cd_flag==-1) {
-////                    fprintf(stderr,"Error: invalid command\n");
-////                    continue;
-////
-////                }
-//
-//
-//                if(i!=0 && arg_num_p>0){// if multiple, only first program can include "<"
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    for(int j=0; j<arg_num_p; j++){
-//                            close(pipefd[j][1]);//==-1;
-//                            close(pipefd[j][0]);//==-1;
-//                        }
-//                    break;
-//                }
-//
-//                loc_in = strtok(loc_in+3,"\n");
-//
-//                // two "<"
-//                if(strstr(loc_in+1, " < ") != NULL) {
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    continue;
-//                }
-////                printf("1. loc_in:%s\n", loc_in);
-////                printf("1. strlen_loc_in:%ld\n", strlen(loc_in));
-//                char * token_in_blank = strstr(loc_in, " ");
-//                printf("token_in_blank:%s\n", token_in_blank);
-//                if(token_in_blank != NULL && !(loc_out) && !(loc_app)
-//                   && *(token_in_blank+1)) {//blank between filename
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    continue;
-//                }
-//
-//
-//                char * delim_in = " ";
-//                char * token_in;
-//                token_in = strtok(loc_in, delim_in);
-//                printf("token_in:%s\n", token_in);
-//                fd_in = open(token_in, O_RDONLY, 0777);
-//                //printf("2. loc_in:%s\n", loc_in);
-//                if (fd_in == -1)
-//                {
-//                    // print which type of error have in a code
-//                    fprintf(stderr,"Error: invalid file\n");
-//                    continue;
-//                    //                 print program detail "Success or failure"
-//                    //                perror("Program");
-//                }
-//                else {
-//                    //fflush(stdout);
-//                    saved_stdin = dup(STDIN_FILENO);
-//                    dup2(fd_in,STDIN_FILENO);
-//                    close(fd_in);
-//                    arg_num --;
-//                }
-//            }
-//            if(loc_app != NULL){
-////                if(cd_flag==-1){
-////                    fprintf(stderr,"Error: invalid command\n");
-////                    continue;
-////
-////                }
-//                //printf("i'm app\n");
-//
-//                if(i!=arg_num_p && arg_num_p>0){// if multiple, only last program can include ">>"
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    break;
-//                }
-//
-//                loc_app = strtok(loc_app+4,"\n");
-//
-////                // two ">>"
-////                if(strstr(loc_app+2, " >> ") != NULL) {
-////                    fprintf(stderr,"Error: invalid command\n");
-////                    continue;
-////                }
-////                printf("1. loc_app:%s\n", loc_app);
-////                printf("arg_num_p:%d\n", arg_num_p);
-////                printf("i:%d\n", i);
-//
-//                if(strstr(loc_app, " ") != NULL) {//blank between filename
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    continue;
-//                }
-//                //printf("1. loc_app:%s\n", loc_app);
-//                fd_app = open(loc_app,O_WRONLY | O_CREAT | O_APPEND, 0777);
-//                //printf("2. loc_app:%s\n", loc_app);
-//                //https://www.geeksforgeeks.org/input-output-system-calls-c-create-open-close-read-write/
-//                //            if (fd == -1)
-//                //                {
-//                //                    // print which type of error have in a code
-//                //                    printf("Error Number % d\n", errno);
-//                //
-//                //                    // print program detail "Success or failure"
-//                //                    perror("Program");
-//                //                }
-//                //            else {
-//                //fflush(stdout);
-//                saved_stdout = dup(STDOUT_FILENO);
-//                dup2(fd_app,STDOUT_FILENO);
-//                close(fd_app);
-//                //                }
-//
-//                arg_num --;
-//                // continue;
-//
-//            }
-//            if(loc_out != NULL){
-//
-//                if(loc_app != NULL){
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    continue;
-//
-//                }
-//
-////                if(cd_flag==-1){
-////                    fprintf(stderr,"Error: invalid command\n");
-////                    continue;
-////
-////                }
-//
-////                // two ">"
-////                if(strstr(loc_out+1, " > ") != NULL) {
-////                    fprintf(stderr,"Error: invalid command\n");
-////                    continue;
-////                }
-//
-//                if(i!=arg_num_p && arg_num_p>0){// if multiple, only last program can include ">"
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    break;
-//                }
-//
-//                loc_out = strtok(loc_out+3,"\n");
-//
-//                if(strstr(loc_out, " ") != NULL) {//blank between filename
-//                    fprintf(stderr,"Error: invalid command\n");
-//                    continue;
-//                }
-//                //printf("1. loc_out:%s\n", loc_out);
-//                fd_out = open(loc_out,O_WRONLY | O_CREAT | O_TRUNC, 0777);
-//                //printf("2. loc_out:%s\n", loc_out);
-//                //https://www.geeksforgeeks.org/input-output-system-calls-c-create-open-close-read-write/
-//                //                if (fd == -1)
-//                //                    {
-//                //                        // print which type of error have in a code
-//                //                        printf("Error Number % d\n", errno);
-//                //
-//                //                        // print program detail "Success or failure"
-//                //                        perror("Program");
-//                //                    }
-//                //                else {
-//                saved_stdout = dup(STDOUT_FILENO);
-//                dup2(fd_out,STDOUT_FILENO);
-//                close(fd_out);
-//                //            }
-//
-//                arg_num --;
-//                // continue;
-//            }
-            //
-            
+
             //            int arg_num = 0;
             //            if(*token == '|')arg_num = 1;
             //
@@ -947,18 +784,7 @@ int main(
                     dup2(pipefd[i][1],STDOUT_FILENO);//
                     //close(pipefd[i][0]);//
                     close(pipefd[i][1]);
-                   // dup2(pipefd[i][0],STDIN_FILENO);
-                    //dup2(pipefd[i][0],STDOUT_FILENO);
-                    
-                    //if(close(pipefd[i][1])==0)//;
-                   // printf("Here1.1: Error creating pipe\n: %d", errno);
-//                    if(close(pipefd[i][0])==-1)//;
-//                    printf("Here1.2: Error creating pipe\n: %d", errno);
-                    
-//                    for(int j=0; j<arg_num_p; j++){
-//                        close(pipe[j][0]);
-//                        close(pipe[j][1]);
-//                    }
+ 
                 }
                 else if(i==0){// i==0 && i==arg_num_p
                     //dup2(pipefd[i][1],STDOUT_FILENO);
@@ -985,19 +811,9 @@ int main(
                    // if(loc_out!=NULL)printf("i'm out");
                     
                     dup2(pipefd[i-1][0],STDIN_FILENO);
-//                    close(pipefd[i][1]);
-//                    close(pipefd[i][0]);
-//                    close(pipefd[i-1][0]);
-                   // dup2(pipefd[i-1][1],STDOUT_FILENO);
-//                    if(close(pipefd[i][1])==-1)//;
-//                    printf("Here3.1: Error creating pipe\n: %d", errno);
-//                    if(close(pipefd[i][0])==-1)//;
-//                    printf("Here3.2: Error creating pipe\n: %d", errno);
-                    //if(
+
                        close(pipefd[i-1][0]);//==-1)//;
-                   // printf("Here3.3: Error creating pipe\n: %d", errno);
-//                    if(close(pipefd[i-1][1])==0)//;
-//                    printf("Here3.4: Error creating pipe\n: %d", errno);
+                  
                 }
                 else {// 0<i<arg_num_p
                     for(int j=0; j<arg_num_p; j++){
@@ -1011,23 +827,9 @@ int main(
 //                                //printf("Here4.0.2: Error creating pipe\n: %d", errno);
 //                        }
                     }
-//                    if(loc_in!=NULL) saved_stdin = dup(pipefd[i-1][0]);
-//                    if(loc_out!=NULL||loc_app!=NULL)saved_stdout = dup(pipefd[i][1]);
-                    //dup2(fd_in,STDIN_FILENO);
-                    //close(fd_in);
-                    //arg_num --;
                     
                     dup2(pipefd[i-1][0],STDIN_FILENO);
                     dup2(pipefd[i][1],STDOUT_FILENO);
-//                    close(pipefd[i][1]);//4
-//                    close(pipefd[i-1][0]);
-//                    close(pipefd[i][0]);
-                    
-//                    dup2(pipefd[i-1][1],STDIN_FILENO);
-//                    dup2(pipefd[i][0],STDOUT_FILENO);
-//                    close(pipefd[i][1]);//4
-//                    close(pipefd[i-1][0]);
-                    
                     //if(
                     close(pipefd[i-1][0]);//==-1)//;
                     //printf("Here4.1: Error creating pipe\n: %d", errno);
@@ -1036,18 +838,9 @@ int main(
                     //printf("Here4.2: Error creating pipe\n: %d", errno);
                     
                 }
-//                if(write(pipefd[i+1][1],buff,sizeof(*buff)) == -1){
-//                    fprintf(stderr,"Error: at writing4\n");
-//                    return 4;
-//                }//write to std output
-                
-//                for (int i=0; i<arg_num_p+1; i++){
-//                    close(pipefd[i][1]);
-//                    close(pipefd[i][0]);
-//                }
-                
-                //printf("heyyyy here:\n");
-                //printf("concat2:%s\n", concat2);
+
+//                printf("heyyyy here:\n");
+//                printf("concat2:%s\n", concat2);
                 ret = execv(concat2,arglist);// //char* sample2[] = {"ls", "-l", NULL};
               
                 if (ret == -1) {
@@ -1056,74 +849,44 @@ int main(
                     //perror("execve error");
                 }
                 
-                //close(saved_stdout);
                 // exec failed
                 //exit( EXIT_FAILURE );
                 exit(-1);
             }
             
             else{//parent process
-                
-//                for (int i=0; i<arg_num_p+1; i++){
-//                    close(pipefd[i][1]);
-//                    close(pipefd[i][0]);
-//                }
-//                if(write(pipefd[i+1][1],buff,sizeof(*buff)) == -1){
-//                    fprintf(stderr,"Error: at writing4\n");
-//                    return 4;
-//                }//write to std output
-                //exit(0);
-                //printf("here~~\n");
-                
-//                close(pipefd[i][0]);
-//                close(pipefd[i+1][1]);
+ 
                 //waitpid(pid,NULL,0);
-//                dup2(pipefd[i-1][0],STDIN_FILENO);
-//                dup2(pipefd[i][1],STDOUT_FILENO);
-//                if (saved_stdin)
-//                while(read(fd_temp,buf,strlen(buf))>0){
-//                    write(fd_app,buf,strlen(buf));
+//                if(loc_in!=NULL && loc_app!=NULL && (int)strlen(loc_app) < (int)strlen(loc_in)) {
+//                    fd_app = open(prt_token_app,O_WRONLY | O_CREAT | O_APPEND, 0777);
+//                    fd_temp = open(file_temp,O_RDONLY | O_CREAT | O_TRUNC, 0777);
+//
+//                    while(read(fd_temp,buf,sizeof(char))>0){
+//                        write(fd_app,buf,sizeof(char));
+//                    }
+//
+//                    //dup2(fd_app,STDOUT_FILENO);
+//                    //
+//
+//                    //                //remove(file_temp);
+//                    close(fd_app);
+//
+//                    dup2(saved_stdout, STDOUT_FILENO);
+//                    close(saved_stdout);
+//                    close(fd_temp);
 //                }
-//                //dup2(fd_app,STDOUT_FILENO);
 //
-//                close(fd_temp);
-//                //remove(file_temp);
-//                close(fd_app);
-//
-                
                 if(loc_in!=NULL) {
                     //printf("i:%d, in\n:",i);
-                    dup2(saved_stdin, STDIN_FILENO);}//redirected input
+                    dup2(saved_stdin, STDIN_FILENO);
+                    //close(saved_stdin);
+                }//redirected input
 //                if (saved_stdout)
                 if(loc_out!=NULL||loc_app!=NULL) {
                     //printf("i:%d, out\n:",i);
                     dup2(saved_stdout, STDOUT_FILENO);}//redirected output
                 //            close(saved_stdout);
                 //waitpid(-1, ...);
-//                int w1 = wait(NULL);
-//                printf("waited for %d\n",w1);
-
-//
-                
-//                for (int i=0; i<=arg_num_p; i++){
-//                    if(i!=0) close(pipefd[i][1]);
-//                    if(i!=arg_num_p) close(pipefd[arg_num_p][0]);
-//                }
-//
-//                char * buff = *command;
-//                if(write(pipefd[0][1], buff, sizeof(*buff)) == -1){
-//                    printf("Error at writing\n");
-//                    return 4;
-//                }
-//
-//                if(read(pipefd[arg_num_p][0], buff, sizeof(*buff)) == -1){
-//                    printf("Error at reading\n");
-//                    return 3;
-//                }
-//
-//                for (int i=0; i<=arg_num_p; i++){
-                    //wait(NULL);
-//                }
             }
 //            printf("1. *command: %s",*command);
 //            printf("1.strlen *command: %ld",strlen(*command));
@@ -1131,14 +894,6 @@ int main(
 //            printf("loc_p_next: %s\n",loc_p_next);
             if(i<arg_num_p) *command = loc_p_next;
             
-//            printf("2. *command: %s",*command);
-//            printf("2.strlen *command: %ld",strlen(*command));
-            //else *command = loc_p_next;
-//            for (int i=0; i<=arg_num_p; i++){
-//                if(i!=0) close(pipefd[i][1]);
-//                if(i!=arg_num_p) close(pipefd[arg_num_p][0]);
-//            }
-            //exit(0);
            // * command = malloc(sizeof(char*));
            concat = malloc(1000);
           str = malloc(1000);
@@ -1149,34 +904,15 @@ int main(
         }
          //shell
         
-//        close pipes
-//        for (int i=0; i<arg_num_p+1; i++){
-//            if(i!=0) close(pipefd[i][1]);// don't close pipefd[0][1]
-//            if(i!=arg_num_p) close(pipefd[arg_num_p][0]);// don't close pipefd[arg_num_p][0]
-//        }
-        
        // close pipes
         for (int i=0; i<arg_num_p; i++){
-//            close(pipefd[i][1])
            // if(
-               close(pipefd[i][1]);//==-1)//;
+            close(pipefd[i][1]);//==-1)//;
             //printf("Shell: Error creating pipe: %d, %d", errno,i);//
-           // close(pipefd[i][0]);//
            // if(
             close(pipefd[i][0]);//==-1)//;
             //printf("Shell: Error creating pipe: %d, %d", errno,i);//
         }
-
-        //char * buff = *command;
-//        if(write(pipefd[0][1], buff, sizeof(*buff)) == -1){
-//            printf("Error at writing1\n");
-//            return 4;
-//        }
-
-//        if(read(pipefd[arg_num_p][0], buff, sizeof(*buff)) == -1){
-//            printf("Error at reading2\n");
-//            return 3;
-//        }
         
         //wait for processes
         for (int i=0; i<arg_num_p+1; i++){
@@ -1189,12 +925,7 @@ int main(
             //wait(NULL);
         }
         
-//            * command = malloc(sizeof(char*));
-//           concat = malloc(1000);
-//          str = malloc(1000);
-//             concat2 = malloc(1000);
-//            str2 = malloc(1000);
-   
+//
     }
     //while(1): prompt
    // return EXIT_SUCCESS;
