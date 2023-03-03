@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F931C03129A08D2500644EE5 /* nyush.c in Sources */ = {isa = PBXBuildFile; fileRef = F931C03029A08D2500644EE5 /* nyush.c */; };
+		F931C04B29B1769700644EE5 /* test_fg.c in Sources */ = {isa = PBXBuildFile; fileRef = F931C04A29B1769700644EE5 /* test_fg.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,6 +25,7 @@
 
 /* Begin PBXFileReference section */
 		F931C03029A08D2500644EE5 /* nyush.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = nyush.c; sourceTree = "<group>"; };
+		F931C04A29B1769700644EE5 /* test_fg.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = test_fg.c; sourceTree = "<group>"; };
 		F9DAF4D129A00BCD003EEC98 /* lab2nyush */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = lab2nyush; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -58,6 +60,7 @@
 			isa = PBXGroup;
 			children = (
 				F931C03029A08D2500644EE5 /* nyush.c */,
+				F931C04A29B1769700644EE5 /* test_fg.c */,
 			);
 			path = lab2nyush;
 			sourceTree = "<group>";
@@ -119,6 +122,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F931C04B29B1769700644EE5 /* test_fg.c in Sources */,
 				F931C03129A08D2500644EE5 /* nyush.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

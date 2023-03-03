@@ -4,6 +4,7 @@
 //
 //  Created by Leslie Lu on 2/17/23.
 //
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,20 +20,58 @@ extern int errno;
 extern int opterr;
 
 
-static volatile int keepRunning = 0;
+//static volatile int keepRunning = 0;
 
-//void intHandler(//int dummy
-//                ) {
-//    continue;
-//    //exit(0);
-//}
+pid_t c_pid ;
+char jList [100][1000] ;
+int pList [100];
+int c = 0;
+int num_cmd = 0;
 
+//char ** command ;
+//*command = malloc(sizeof(char*));
+//char ** command = malloc(sizeof(char*));
+//*command = malloc(sizeof(char*));
 // Ctrl-C or Ctrl-Z
 // don’t expect to terminate or suspend the shell. Therefore, your shell should ignore the following signals: SIGINT, SIGQUIT, and SIGTSTP
+
+
+//CTRL+C, SIGINT
+void intHandler(int sig) {
+    //printf("intHandler: getpid:%d\n",getpid());
+    //printf("intHandler: c_pid:%d\n",c_pid);
+    if(getpid()!=c_pid)kill(c_pid, sig);
+        else return;
+    //wait(NULL);
+                    
+                    
+                    
+//    kill(pid, SIGSTOP);//kill child
+//    kill(getpid(), SIGSTOP);//kill child
+    //kill(getpid(), SIGTSTP);// kill shell
+    //exit(0);
+}
+
+//Ctrl-Z, SIGTSTP:
+void stpHandler(int sig) {//stop child
+
+//    printf("c_pid:%d\n",c_pid);
+//    kill(c_pid, sig);
+    if(getpid()!=c_pid)kill(c_pid, sig);
+        else return;
+//    pid_t pid_child = waitpid(-1, &status, WUNTRACED);
+//    printf("pid_child:%d\n",pid_child);
+    //kill(pid_child , SIGTSTP);//stop child
+
+}
+
+
+
+//Ctrl-D, SIGQUIT:
 void quitHandler(//int dummy
                 ) {
                     fclose(stdin);
-    //exit(0);
+                    exit(0);
 }
 
 //Milestone#1: print prompt
@@ -65,7 +104,10 @@ void get_user_input( char ** command){
     size_t n = 0;
 
     getline(command, &n, stdin);
-    
+//    printf("strlen:%ld\n",strlen(*command));
+//    *(*command+strlen(*command)-1) = NULL;
+//    printf("str__:%s\n",*command+strlen(*command)-1);
+//    printf("str__:%s\n",*command+strlen(*command)-2);
     //if(**command == 'e') { *exit_c = -1;}// if user inputs 'e', set exit code to -1 to leave prompt
 //    else {
 //        //printf("size:%zu, string:%s\n", n, *command);
@@ -136,7 +178,9 @@ void redir_in (int * i, int * arg_num_p, int * arg_num,// int (* pipefd)[*arg_nu
         }
 
         //printf("here~~*loc_in:%s\n", *loc_in);
-        *loc_in = strtok(*loc_in+3,"\n");
+        char * loc_in_cpy = malloc(1000);
+        strcpy(loc_in_cpy,*loc_in);
+        *loc_in = strtok(loc_in_cpy+3,"\n");
         //printf("heyhere~~*loc_in:%s\n", *loc_in);
         
         //if(*is_loc_in>1) return;
@@ -155,12 +199,13 @@ void redir_in (int * i, int * arg_num_p, int * arg_num,// int (* pipefd)[*arg_nu
         
         char * delim_in = " ";
         char * token_in = malloc(1000);
+        char * token = malloc(1000);
         
         strcpy(token_in,*loc_in);
      //   printf("*loc_in:%s\n", *loc_in);
-        token_in = strtok(token_in, delim_in);
+        token = strtok(token_in, delim_in);
       //  printf("token_in:%s\n", token_in);
-        *fd_in = open(token_in, O_RDONLY, 0777);
+        *fd_in = open(token, O_RDONLY, 0777);
         //printf("2. loc_in:%s\n", loc_in);
         if (*fd_in == -1)
         {
@@ -178,7 +223,11 @@ void redir_in (int * i, int * arg_num_p, int * arg_num,// int (* pipefd)[*arg_nu
             close(*fd_in);
             (*arg_num) --;
             
+            
         }
+//        free(loc_in_cpy);
+//        free(token_in);
+//        free(token);
     }
 }
 
@@ -343,12 +392,106 @@ void redir_out (int * i, int * arg_num_p, int * arg_num, //int (* pipefd)[*arg_n
     }
 }
 
+
+//void jobs(char *** joblist,  int* num_cmd, pid_t * pid){//A job may be suspended by Ctrl-Z, the SIGTSTP signal, or the SIGSTOP signal.
+//    for(int i=1; i<= *num_cmd; i++){
+//        printf("[%d] %s %d\n",i,*(*joblist+1000*(i-1)), *pid);
+//    }
+//
+//}
+
+void jobs(//char (*jList)[100][1000], int (*pList)[100],
+          int* num_cmd//, pid_t * pid
+        ){//A job may be suspended by Ctrl-Z, the SIGTSTP signal, or the SIGSTOP signal.
+    for(int i=1; i<= *num_cmd; i++){
+        //printf("[%d] %s %d\n",i,*(*jList+1000*(i-1)), *pid);
+        printf("[%d] %s",i, (jList)[i-1]);
+//        printf("[%d] %s %d\n",i, (jList)[i-1], (pList)[i-1]);
+    }
+
+}
+
+void fg(int i){
+   // printf("inside fg\n");
+    
+    if(num_cmd==0||i>num_cmd){
+            fprintf(stderr," Error: invalid job\n");
+            c=1;
+            return;
+        }
+    
+    c_pid = (pList)[i-1];
+    char * c_cmd = jList[i-1];
+    kill(c_pid,SIGCONT);
+    //printf("inside fg_c_cmd:%s\n", c_cmd);
+    //printf("inside fg_c_pid:%d\n", c_pid);
+    //clear process items in jList and pList
+//    strcpy(jList[i-1],'\0');
+//    pList[i-1]= -1;
+   // printf("here\n");
+    //wait(NULL);
+   // printf("AFTER inside fg_c_pid:%d\n", c_pid);
+    //update jList and pList
+//    for(int i=1; i<= num_cmd; i++){
+//        jList[i-1]
+//    }
+  //  printf("num_cmd:%d\n", num_cmd);
+   // printf("HEY inside fg_c_pid:%d\n", c_pid);
+    for (int j=1;j<=num_cmd;j++){
+    //    printf("3.inside fg_c_pid:%d\n", c_pid);
+        if(i!=j && i<j){
+          //  printf("4.inside fg_c_pid:%d\n", c_pid);
+            char * copy = jList[j-1];
+            strcpy(jList[j-2],copy);
+            pList[j-2] = pList[j-1];
+           // printf("5.inside fg_c_pid:%d\n", c_pid);
+        }
+        strcpy(jList[num_cmd-1],"\0");
+        //jList[num_cmd]=
+        pList[num_cmd-1] = 0;
+    }
+    
+    //printf("1.inside fg_c_pid:%d\n", c_pid);
+    num_cmd--;
+    //printf("2.inside fg_c_pid:%d\n", c_pid);
+    
+    int status;
+    
+    waitpid(c_pid, &status, WUNTRACED);
+    if(WIFSTOPPED(status)){//true, child suspended
+//        printf("In status: c_pid:%d\n",c_pid);//terminated child's pid
+//        printf("In status: *command:%s\n",c_cmd);//terminated child's command
+        //*(joblist + 1000*(num_cmd-1))= *command;
+//                **jList[num_cmd-1] = *command;
+        num_cmd++;
+        strcpy(jList[num_cmd-1] ,c_cmd);
+        //strcpy(pList[num_cmd-1] , (int)c_pid);
+        pList[num_cmd-1] = c_pid;
+    }
+//    wait(NULL);
+    c = 1;
+    //return;
+}
+
 //body
 int main(
         //int argc, const char * argv[]
 ) {
     // insert code here...
     //opterr = 0;
+    //printf("argc:%d\n", argc);
+  //  printf("argc:%d\n", argc);
+    //char * jList [100];
+    //int * pList [100];
+    
+//    char ** joblist = malloc(sizeof(char*));
+//    for(int s=0; s<100; s++){
+//        * joblist = malloc(sizeof(char)*1000);
+//    }
+//    char jList [100][1000] ;
+//    int pList [100];
+    
+    
     
     
     char ** command = malloc(sizeof(char*));
@@ -365,13 +508,22 @@ int main(
     
     //sighandler_t
     //signal(SIGINT, SIG_IGN);
-//    signal(SIGINT, intHandler);
+    signal(SIGINT, intHandler);
+    signal(SIGTSTP, stpHandler);
+    //signal(SIGQUIT, quitHandler);
 //    signal(SIGQUIT, quitHandler);
-   
+    int fg_index;
+    
     while (1) {
         print_prompt();
         get_user_input(command);
+      //  ((int)strlen(*joblist))
+        //num_cmd++;
+       // *(joblist + 1000*(num_cmd-1))= *command;
         
+        
+        
+        //printf("num_cmd:%d\n",num_cmd);
         //EOF
         if (feof(stdin)) break;
         
@@ -380,8 +532,21 @@ int main(
         }
         
         if(strcmp(*command,"exit\n") == 0){
-            break;
+            if(strlen(*command)==5){
+                if(num_cmd>0){fprintf(stderr,"Error: there are suspended jobs\n");}
+                else exit(0);
+            }
+            else {fprintf(stderr,"Error: invalid command\n");}
+                    continue;
         }
+        
+  
+        
+        if(**command == '|'){
+            fprintf(stderr,"Error: invalid command\n");
+            continue;
+        }
+        
         
         //int cd_flag = 0;
         if(**command == 'c' && *((*command)+1) == 'd'){
@@ -390,8 +555,50 @@ int main(
             continue;
         }
         
-        if(**command == '|'){
-            fprintf(stderr,"Error: invalid command\n");
+//        if(**command == 'f' && *((*command)+1) == 'g' ){
+//            int target_index = *((*command)+3);//the index of fg
+//            //pid_t target_pid =
+//               // kill(target_pid,SIGCONT);
+//
+//            continue;
+//        }
+        if(**command == 'f' && *((*command)+1) == 'g'//&& *((*command)+3) == 's'
+           ){
+//            printf("Inside main() fg\n");
+//            printf("Inside main() %s\n",((*command)+3));
+            char * fg_input = ((*command)+3);
+            
+            if( *((*command)+2) == ' ' && !(strstr(fg_input," "))){
+                //build input char* with null terminator
+                *(fg_input+strlen(fg_input)-1) = '\0';
+                //int fg_index;
+                //sscanf(fg_input, "%d", &fg_index);
+                //int
+                fg_index = atoi(fg_input);
+//                printf("fg_input %ld\n",strlen(fg_input));
+//                printf("fg_index %d\n",fg_index);
+                fg(fg_index);
+                //continue;
+            }
+            else {
+                fprintf(stderr,"Error: invalid command\n");
+                continue;
+            }
+        }
+        if(c==1) {c=0; continue;}
+//        char * is_Job = strstr(*command, "jobs\n");
+//        printf("?%s:\n",is_Job );
+        if(**command == 'j' && *((*command)+1) == 'o'&& *((*command)+2) == 'b'&& *((*command)+3) == 's'){
+            if(strlen(*command)==5){
+                //pid_t pid = getpid();
+                //jobs(&joblist,  &num_cmd, &pid);
+                jobs(//&jList, &pList,
+                     &num_cmd//, &pid
+                     );
+                //printf("jobs");
+            }
+
+            else fprintf(stderr,"Error: invalid command\n");
             continue;
         }
         //count pipe_num (|) of user input
@@ -577,7 +784,7 @@ int main(
             if(loc_out)is_loc_out = 1;
             
             //int b = 0;
-            int c = 0;
+            
             
           //  printf("(int)strlen(*command):%d\n", (int)strlen(*command));
             //printf("(int)strlen(loc_in):%d\n", (int)strlen(loc_in));
@@ -723,9 +930,14 @@ int main(
             else{//1. Locating programs: absolute path
                 //if(**command == '/'){
                 if(*token_p == '/'){
-                    char * ptr = strrchr(arglist[0] , '/' );
+                    //char * ptr = strrchr(arglist[0] , '/' );
+//                    printf("str3:%s\n",str3);
+//                    printf("arglist[0]:%s\n",arglist[0]);
+//                    printf("str3:%ld\n",strlen(str3));
+//                    printf("len_arglist[0]:%ld\n",strlen(arglist[0]));
                     concat2 = str3;
-                    arglist[0] = ptr + 1;
+                    //arglist[0] = ptr + 1;
+                    arglist[0] = str3;
                 }
                 else{//2. Locating programs: relative path
                     char cwd[256];
@@ -788,8 +1000,8 @@ int main(
                 }
                 else if(i==0){// i==0 && i==arg_num_p
                     //dup2(pipefd[i][1],STDOUT_FILENO);
-                    close(pipefd[i][0]);
-                    close(pipefd[i][1]);
+//                    close(pipefd[i][0]);
+//                    close(pipefd[i][1]);
                 }
                 else if(i!=0 && i==arg_num_p) {// i!=0 && i==arg_num_p
                     //printf("Here i:%d ", i);
@@ -841,6 +1053,9 @@ int main(
 
 //                printf("heyyyy here:\n");
 //                printf("concat2:%s\n", concat2);
+                //pid_t pid2 = getpid();
+                //printf("pid before execv%d:\n", pid2);
+                //signal(SIGINT, intHandler);
                 ret = execv(concat2,arglist);// //char* sample2[] = {"ls", "-l", NULL};
               
                 if (ret == -1) {
@@ -855,7 +1070,10 @@ int main(
             }
             
             else{//parent process
- 
+               // signal(SIGINT, intHandler);
+                c_pid = pids[i];
+            
+                
                 //waitpid(pid,NULL,0);
 //                if(loc_in!=NULL && loc_app!=NULL && (int)strlen(loc_app) < (int)strlen(loc_in)) {
 //                    fd_app = open(prt_token_app,O_WRONLY | O_CREAT | O_APPEND, 0777);
@@ -887,7 +1105,26 @@ int main(
                     dup2(saved_stdout, STDOUT_FILENO);}//redirected output
                 //            close(saved_stdout);
                 //waitpid(-1, ...);
+                
+
+                
             }
+            
+//            int status;
+//            //pid_t sus_pid;
+//            //sus_pid =
+//            waitpid(c_pid, &status, WUNTRACED);
+//            if(WIFSTOPPED(status)){//true, child suspended
+//                printf("In status: c_pid:%d\n",c_pid);//terminated child's pid
+//                printf("In status: *command:%s\n",*command);//terminated child's command
+//                //*(joblist + 1000*(num_cmd-1))= *command;
+////                **jList[num_cmd-1] = *command;
+//                num_cmd++;
+//                strcpy(jList[num_cmd-1] ,*command);
+//                //strcpy(pList[num_cmd-1] , (int)c_pid);
+//                pList[num_cmd-1] = c_pid;
+//            }
+            
 //            printf("1. *command: %s",*command);
 //            printf("1.strlen *command: %ld",strlen(*command));
 //            printf("arg_num_p: %d\n",arg_num_p);
@@ -914,27 +1151,61 @@ int main(
             //printf("Shell: Error creating pipe: %d, %d", errno,i);//
         }
         
-        //wait for processes
+        //wait for child processes
+//        int status;
+//        int c_pid;
         for (int i=0; i<arg_num_p+1; i++){
-            //int w1 =
-            wait(NULL);
-            //printf("waited for %d\n",w1);
+//            int w1 =
+            //wait(NULL);
+//            printf("waited for %d\n",w1);
             //int w2 =
             //wait(NULL);
             //printf("waited for %d\n",w2);
             //wait(NULL);
+//            int status;
+//
+            int status;
+            //pid_t sus_pid;
+            //sus_pid =
+            waitpid(c_pid, &status, WUNTRACED);
+            if(WIFSTOPPED(status)){//true, child suspended
+//                printf("In status: c_pid:%d\n",c_pid);//terminated child's pid
+//                printf("In status: *command:%s\n",*command);//terminated child's command
+                //*(joblist + 1000*(num_cmd-1))= *command;
+//                **jList[num_cmd-1] = *command;
+                num_cmd++;
+                strcpy(jList[num_cmd-1] ,*command);
+                //strcpy(pList[num_cmd-1] , (int)c_pid);
+                pList[num_cmd-1] = c_pid;
+            }
+            
+//            waitpid(c_pid, &status, WUNTRACED);
+//            if(WIFSTOPPED(status)){//true, child suspended
+//                printf("In status: c_pid:%d\n",c_pid);//terminated child's pid
+//                printf("In status: *command:%s\n",*command);//terminated child's command
+//                //*(joblist + 1000*(num_cmd-1))= *command;
+////                **jList[num_cmd-1] = *command;
+//                num_cmd++;
+//                strcpy(jList[num_cmd-1] ,*command);
+//                //strcpy(pList[num_cmd-1] , (int)c_pid);
+//                pList[num_cmd-1] = c_pid;
+//            }
+            
+            
         }
-        
+        //printf("status:%d",status);
 //
     }
     //while(1): prompt
    // return EXIT_SUCCESS;
 
-//                free(command);
-//                free(concat);
-//                free(concat2);
-//                free(str);
-//                free(str2);
+        free(*command);
+        free(command);
+        free(concat);
+        free(concat2);
+        free(str);
+        free(str2);
+        free(str3);
 //////
 //    exit(0);
     //free(exit_c);
